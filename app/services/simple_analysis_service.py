@@ -314,7 +314,7 @@ def _get_default_backend_url(provider: str) -> str:
     """
     default_urls = {
         "google": "https://generativelanguage.googleapis.com/v1beta",
-        "dashscope": "https://dashscope.aliyuncs.com/api/v1",
+        "dashscope": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "openai": "https://api.openai.com/v1",
         "deepseek": "https://api.deepseek.com",
         "anthropic": "https://api.anthropic.com",
@@ -515,17 +515,7 @@ def create_analysis_config(
     except Exception as e:
         logger.warning(f"⚠️  无法从数据库获取 backend_url 和 API Key: {e}")
         # 2️⃣ 回退到硬编码的默认 URL，API Key 将从环境变量读取
-        if llm_provider == "dashscope":
-            config["backend_url"] = "https://dashscope.aliyuncs.com/api/v1"
-        elif llm_provider == "deepseek":
-            config["backend_url"] = "https://api.deepseek.com"
-        elif llm_provider == "openai":
-            config["backend_url"] = "https://api.openai.com/v1"
-        elif llm_provider == "google":
-            config["backend_url"] = "https://generativelanguage.googleapis.com/v1beta"
-        elif llm_provider == "qianfan":
-            config["backend_url"] = "https://aip.baidubce.com"
-        else:
+        if llm_provider not in ["dashscope", "deepseek", "openai", "google", "qianfan"]:
             # 🔧 未知厂家，尝试从数据库获取厂家的 default_base_url
             logger.warning(f"⚠️  未知厂家 {llm_provider}，尝试从数据库获取配置")
             try:
@@ -548,7 +538,9 @@ def create_analysis_config(
                 client.close()
             except Exception as e2:
                 logger.error(f"❌ 查询数据库失败: {e2}，使用默认 OpenAI 端点")
-                config["backend_url"] = "https://api.openai.com/v1"
+                config["backend_url"] = _get_default_backend_url(llm_provider)
+        else:
+            config["backend_url"] = _get_default_backend_url(llm_provider)
 
         logger.info(f"⚠️  使用回退的 backend_url: {config['backend_url']}")
 

@@ -169,6 +169,16 @@ class ModelCapabilityService:
                         if not roles_enum:
                             roles_enum = [ModelRole.BOTH]
 
+                        if not features_enum:
+                            _, mapped_model = self._parse_aggregator_model_name(model_name)
+                            fallback_key = mapped_model if mapped_model else model_name
+                            if fallback_key in DEFAULT_MODEL_CAPABILITIES:
+                                default_cfg = DEFAULT_MODEL_CAPABILITIES[fallback_key]
+                                default_features = default_cfg.get("features", [])
+                                if default_features:
+                                    features_enum = default_features
+                                    logger.info(f"🔄 使用默认能力映射填充特性: {features_enum}")
+
                         logger.info(f"📊 [MongoDB配置] {model_name}: features={features_enum}, roles={roles_enum}")
 
                         # 关闭连接
@@ -427,4 +437,3 @@ def get_model_capability_service() -> ModelCapabilityService:
     if _model_capability_service is None:
         _model_capability_service = ModelCapabilityService()
     return _model_capability_service
-

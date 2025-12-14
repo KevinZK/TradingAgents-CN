@@ -1,0 +1,42 @@
+# 本地运行指南 (Docker 方式)
+
+## 1. 环境准备
+确保已安装 Docker 和 Docker Compose。
+
+## 2. 配置
+确保根目录下已有 `.env` 文件（可复制 `.env.example` 修改）。
+
+## 3. 启动项目
+在项目根目录下运行以下命令启动所有服务：
+```bash
+docker-compose up -d
+```
+首次启动可能需要一些时间下载镜像和构建。
+
+## 4. 访问系统
+启动完成后，浏览器访问：
+http://localhost:3000
+
+默认管理员账号：
+- 用户名：admin
+- 密码：admin123
+
+## 5. 查看日志
+如果需要查看服务运行日志：
+```bash
+# 查看所有服务日志
+docker-compose logs -f
+
+# 查看特定服务日志 (如后端)
+docker-compose logs -f backend
+```
+
+## 6. 停止项目
+运行以下命令停止并移除容器：
+```bash
+docker-compose down
+```
+如果需要同时删除数据卷（慎用，会清空数据库）：
+```bash
+docker-compose down -v
+```

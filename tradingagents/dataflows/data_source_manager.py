@@ -1118,13 +1118,19 @@ class DataSourceManager:
                               })
 
                 # 数据质量异常时也尝试降级到其他数据源
-                fallback_result = self._try_fallback_sources(symbol, start_date, end_date)
-                if fallback_result and "❌" not in fallback_result and "错误" not in fallback_result:
-                    logger.info(f"✅ [数据来源: 备用数据源] 降级成功获取数据: {symbol}")
-                    return fallback_result
-                else:
-                    logger.error(f"❌ [数据来源: 所有数据源失败] 所有数据源都无法获取有效数据: {symbol}")
-                    return result  # 返回原始结果（包含错误信息）
+                # 优化：如果当前是MongoDB，内部已经做过降级，不需要重复尝试
+                should_try_fallback = self.current_source != ChinaDataSource.MONGODB
+                
+                if should_try_fallback:
+                    fallback_result_tuple = self._try_fallback_sources(symbol, start_date, end_date, period)
+                    fallback_result_str, fallback_source = fallback_result_tuple
+                    
+                    if fallback_result_str and "❌" not in fallback_result_str and "错误" not in fallback_result_str:
+                        logger.info(f"✅ [数据来源: 备用数据源] 降级成功获取数据: {symbol} (来源: {fallback_source})")
+                        return fallback_result_str
+                
+                logger.error(f"❌ [数据来源: 所有数据源失败] 所有数据源都无法获取有效数据: {symbol}")
+                return result  # 返回原始结果（包含错误信息）
 
         except Exception as e:
             duration = time.time() - start_time
@@ -1138,9 +1144,11 @@ class DataSourceManager:
                             'error': str(e),
                             'event_type': 'data_fetch_exception'
                         }, exc_info=True)
-            return self._try_fallback_sources(symbol, start_date, end_date)
+            # 异常时尝试降级，并只返回结果字符串
+            fallback_result_tuple = self._try_fallback_sources(symbol, start_date, end_date, period)
+            return fallback_result_tuple[0]
 
-    def _get_mongodb_data(self, symbol: str, start_date: str, end_date: str, period: str = "daily") -> tuple[str, str | None]:
+    def _get_mongodb_data(self, symbol: str, start_date: str, end_date: str, period: str = "daily") -> tuple[str, Optional[str]]:
         """
         从MongoDB获取多周期数据 - 包含技术指标计算
 
@@ -1379,7 +1387,7 @@ class DataSourceManager:
             logger.error(f"❌ 获取成交量失败: {e}")
             return 0
 
-    def _try_fallback_sources(self, symbol: str, start_date: str, end_date: str, period: str = "daily") -> tuple[str, str | None]:
+    def _try_fallback_sources(self, symbol: str, start_date: str, end_date: str, period: str = "daily") -> tuple[str, Optional[str]]:
         """
         尝试备用数据源 - 避免递归调用
 
@@ -1836,7 +1844,8 @@ class DataSourceManager:
     def _get_tushare_fundamentals(self, symbol: str) -> str:
         """从 Tushare 获取基本面数据 - 暂时不可用，需要实现"""
         logger.warning(f"⚠️ Tushare基本面数据功能暂时不可用")
-        return f"⚠️ Tushare基本面数据功能暂时不可用，请使用其他数据源"
+        # 返回带❌的错误信息，以便触发降级逻辑
+        return f"❌ Tushare基本面数据功能暂时不可用，请使用其他数据源"
 
     def _get_akshare_fundamentals(self, symbol: str) -> str:
         """从 AKShare 生成基本面分析"""
